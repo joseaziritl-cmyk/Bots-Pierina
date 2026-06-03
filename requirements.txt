@@ -1,5 +1,5 @@
 pyTelegramBotAPI
 gspread
-oauth2client
+google-auth
 Flask
 gunicorn
