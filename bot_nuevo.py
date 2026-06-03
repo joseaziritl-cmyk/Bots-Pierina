@@ -47,13 +47,24 @@ def keep_alive():
 # 3. LÓGICA PRINCIPAL DEL BOT
 # ==========================================
 def conectar_google_sheets():
-    """Establece conexión con la hoja de cálculo usando la librería moderna de Google."""
+    """Establece conexión usando la librería moderna con tolerancia a desfases de hora."""
     scope = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
-    # Conexión moderna y segura apuntando al archivo json de tu raíz
-    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scope)
+    
+    # Cargamos las credenciales desde el archivo físico original
+    # Agregamos la tolerancia para ignorar pequeños desfases de reloj en el servidor
+    creds = Credentials.from_service_account_file(
+        CREDENTIALS_FILE, 
+        scopes=scope,
+        token_uri="https://oauth2.googleapis.com/token"  # Asegura la ruta directa de validación
+    )
+    
+    # Forzamos una ventana de tolerancia de 10 segundos antes de enviar la firma
+    if hasattr(creds, '_signer') and hasattr(creds._signer, 'clock_skew'):
+        creds._signer.clock_skew = 10  # Otorga 10 segundos de margen de error al reloj
+        
     client = gspread.authorize(creds)
     sheet = client.open(DOCUMENTO_GOOGLE_SHEETS).sheet1
     return sheet
