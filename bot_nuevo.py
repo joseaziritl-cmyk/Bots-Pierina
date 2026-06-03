@@ -4,13 +4,13 @@ import telebot
 import gspread
 from flask import Flask
 from threading import Thread
-from oauth2client.service_account import ServiceAccountCredentials
+# Usamos la librería moderna de Google para evitar errores de firma JWT
+from google.oauth2.service_account import Credentials
 
 # ==========================================
 # 1. CONFIGURACIÓN DE VARIABLES DE ENTORNO
 # ==========================================
 # Render buscará automáticamente el TOKEN que configuraste en su panel.
-# Asegúrate de haberle puesto el nombre 'TELEGRAM_TOKEN' en Render.
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
@@ -29,8 +29,6 @@ COLUMNAS_EXCEL = [
 # ==========================================
 # 2. SISTEMA KEEP-ALIVE (SERVIDOR WEB FLASK)
 # ==========================================
-# Esto crea una página web falsa para que UptimeRobot le haga "ping"
-# y Render mantenga tu bot encendido 24/7 de forma gratuita.
 app = Flask('')
 
 @app.route('/')
@@ -38,7 +36,6 @@ def home():
     return "¡Bot de Pacientes en línea y funcionando!"
 
 def run_flask():
-    # Render asigna automáticamente un puerto, si no, usa el 8080
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
@@ -50,10 +47,13 @@ def keep_alive():
 # 3. LÓGICA PRINCIPAL DEL BOT
 # ==========================================
 def conectar_google_sheets():
-    """Establece conexión con la hoja de cálculo usando el archivo json."""
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    # Asegúrate de que use esta línea para leer el archivo:
-    creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
+    """Establece conexión con la hoja de cálculo usando la librería moderna de Google."""
+    scope = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    # Conexión moderna y segura apuntando al archivo json de tu raíz
+    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scope)
     client = gspread.authorize(creds)
     sheet = client.open(DOCUMENTO_GOOGLE_SHEETS).sheet1
     return sheet
