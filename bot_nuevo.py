@@ -53,17 +53,15 @@ def conectar_google_sheets():
         "https://www.googleapis.com/auth/drive"
     ]
     
-    # Cargamos las credenciales desde el archivo físico original
-    # Agregamos la tolerancia para ignorar pequeños desfases de reloj en el servidor
+    # Cargamos las credenciales de forma limpia sin duplicar parámetros
     creds = Credentials.from_service_account_file(
         CREDENTIALS_FILE, 
-        scopes=scope,
-        token_uri="https://oauth2.googleapis.com/token"  # Asegura la ruta directa de validación
+        scopes=scope
     )
     
-    # Forzamos una ventana de tolerancia de 10 segundos antes de enviar la firma
-    if hasattr(creds, '_signer') and hasattr(creds._signer, 'clock_skew'):
-        creds._signer.clock_skew = 10  # Otorga 10 segundos de margen de error al reloj
+    # Aquí aplicamos la tolerancia para el desfase de hora de Render
+    # Le damos un margen de 60 segundos (1 minuto) para ir super sobrados
+    creds._clock_skew = 60  
         
     client = gspread.authorize(creds)
     sheet = client.open(DOCUMENTO_GOOGLE_SHEETS).sheet1
