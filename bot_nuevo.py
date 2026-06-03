@@ -1,24 +1,54 @@
+import os
 import re
 import telebot
 import gspread
+from flask import Flask
+from threading import Thread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# 1. Configura tu Token de Telegram
-TOKEN = "8322570269:AAEZXkQlz0kTQgDbJauzRD8oWWjfZXaMARg"
+# ==========================================
+# 1. CONFIGURACIÓN DE VARIABLES DE ENTORNO
+# ==========================================
+# Render buscará automáticamente el TOKEN que configuraste en su panel.
+# Asegúrate de haberle puesto el nombre 'TELEGRAM_TOKEN' en Render.
+TOKEN = os.environ.get("TELEGRAM_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
-# 2. Configura el nombre EXACTO de tu archivo de Google Sheets
+# Nombre EXACTO de tu archivo de Google Sheets
 DOCUMENTO_GOOGLE_SHEETS = "DATOS PACIENTES"
 
-# Archivo de credenciales de Google
+# Archivo de credenciales de Google (Debe estar subido en tu GitHub)
 CREDENTIALS_FILE = "credenciales.json"
 
-# NUEVA COLUMNA AÑADIDA: "CASO" va de primero
+# Columnas ordenadas de la hoja de cálculo
 COLUMNAS_EXCEL = [
     "CASO", "CONTACTO", "ACUDIENTE", "NOMBRE DEL PACIENTE", 
     "EDAD", "DIFICULTAD", "DIRECCIÓN", "TIPO DE ATENCIÓN", "DOCTOR/DOCTORA"
 ]
 
+# ==========================================
+# 2. SISTEMA KEEP-ALIVE (SERVIDOR WEB FLASK)
+# ==========================================
+# Esto crea una página web falsa para que UptimeRobot le haga "ping"
+# y Render mantenga tu bot encendido 24/7 de forma gratuita.
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "¡Bot de Pacientes en línea y funcionando!"
+
+def run_flask():
+    # Render asigna automáticamente un puerto, si no, usa el 8080
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run_flask)
+    t.start()
+
+# ==========================================
+# 3. LÓGICA PRINCIPAL DEL BOT
+# ==========================================
 def conectar_google_sheets():
     """Establece conexión con la hoja de cálculo en la nube."""
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -79,17 +109,13 @@ def registrar_paciente(message):
         hoja = conectar_google_sheets()
         
         # === LÓGICA DEL AUTO-INCREMENTAL DESDE 17 ===
-        # row_count cuenta todas las filas ocupadas (incluyendo los títulos)
         total_filas = len(hoja.get_all_values())
         
         if total_filas <= 1:
-            # Si solo están los títulos o está vacío, el primer caso es 17
             numero_caso = 17
         else:
-            # Si ya hay datos, calcula el siguiente basándose en las filas existentes
             numero_caso = total_filas + 15
             
-        # Guardamos el número generado en el diccionario antes de enviarlo
         datos["CASO"] = numero_caso
         
         # Preparamos la fila armada con el orden de COLUMNAS_EXCEL
@@ -102,13 +128,18 @@ def registrar_paciente(message):
     except Exception as error_google:
         error_msg = str(error_google)
         
-        # Parche de red por si vuelve a reportar el falso error 200
         if "200" in error_msg:
             bot.reply_to(message, f"☁️ ✅ ¡Listo! El paciente '{datos['NOMBRE DEL PACIENTE']}' se registró perfectamente.")
         else:
             print(f"!!! ERROR REAL DE GOOGLE SHEETS !!!: {error_msg}", flush=True)
             bot.reply_to(message, f"❌ Error de Google Sheets: {error_msg}")
 
+# ==========================================
+# 4. ARRANQUE DEL BOT Y SERVIDORES
+# ==========================================
 if __name__ == "__main__":
+    print(">>> INICIANDO SERVIDOR WEB EN SEGUNDO PLANO <<<", flush=True)
+    keep_alive()  # Activa Flask en un hilo separado
+    
     print(">>> BOT CON AUTO-INCREMENTAL ENCENDIDO <<<", flush=True)
     bot.infinity_polling()
