@@ -49,23 +49,11 @@ def keep_alive():
 # ==========================================
 # 3. LÓGICA PRINCIPAL DEL BOT
 # ==========================================
-import json  # <-- Asegúrate de que esta línea esté arriba con los demás imports
-
 def conectar_google_sheets():
-    """Establece conexión usando las credenciales desde las variables de entorno."""
+    """Establece conexión con la hoja de cálculo usando el archivo json."""
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    
-    # Intentamos leer la variable de entorno de Render
-    google_creds_json = os.environ.get("GOOGLE_CREDS")
-    
-    if google_creds_json:
-        # Si encuentra la variable en Render, carga los datos directamente desde ahí
-        info_credenciales = json.loads(google_creds_json)
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(info_credenciales, scope)
-    else:
-        # Por si acaso estás probando en tu PC local, que siga buscando el archivo
-        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
-        
+    # Asegúrate de que use esta línea para leer el archivo:
+    creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
     client = gspread.authorize(creds)
     sheet = client.open(DOCUMENTO_GOOGLE_SHEETS).sheet1
     return sheet
