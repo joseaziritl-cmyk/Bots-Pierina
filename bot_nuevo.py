@@ -46,21 +46,28 @@ def keep_alive():
 # ==========================================
 # 3. LÓGICA PRINCIPAL DEL BOT
 # ==========================================
+import json  # <-- Verifica que esta línea esté arriba del todo con los demás imports
+
 def conectar_google_sheets():
-    """Establece conexión usando la librería moderna con tolerancia a desfases de hora."""
+    """Establece conexión extrayendo las credenciales directo desde Render."""
     scope = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
     
-    # Cargamos las credenciales de forma limpia sin duplicar parámetros
-    creds = Credentials.from_service_account_file(
-        CREDENTIALS_FILE, 
-        scopes=scope
-    )
+    # Leemos la variable de entorno de Render
+    google_creds_json = os.environ.get("GOOGLE_CREDS")
     
-    # Aquí aplicamos la tolerancia para el desfase de hora de Render
-    # Le damos un margen de 60 segundos (1 minuto) para ir super sobrados
+    if not google_creds_json:
+        raise ValueError("❌ Error: No se encontró la variable GOOGLE_CREDS en Render.")
+        
+    # Convertimos el texto de la variable en un diccionario de Python
+    info_credenciales = json.loads(google_creds_json)
+    
+    # Creamos las credenciales directo desde el diccionario en memoria
+    creds = Credentials.from_service_account_info(info_credenciales, scopes=scope)
+    
+    # Mantenemos el margen de tolerancia por si acaso
     creds._clock_skew = 60  
         
     client = gspread.authorize(creds)
